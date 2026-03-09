@@ -8,3 +8,12 @@ import (
 	"os"
 	"strings"
 )
+
+type PageData struct {
+	Result string
+	Text   string
+	Banner string
+	Error string
+}
+
+var templates *template.Template
