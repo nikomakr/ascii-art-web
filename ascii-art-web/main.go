@@ -33,3 +33,53 @@ func main() {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
+
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		renderError(w, http.StatusNotFound, "404 - Page Not Found")
+		return
+	}
+	if r.Method != http.MethodGet {
+		renderError(w, http.StatusMethodNotAllowed, "405 - Method Not Allowed")
+		return
+	}
+	data := PageData{Banner: "standard"}
+	renderTemplate(w, "index.html", data)
+}
+
+func asciiArtHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		renderError(w, http.StatusMethodNotAllowed, "405 - Method Not Allowed")
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		renderError(w, http.StatusBadRequest, "400 - Bad Request: could not parse form")
+		return
+	}
+
+	text := r.FormValue("text")
+	banner := r.FormValue("banner")
+
+	validBanners := map[string]bool{"standard": true, "shadow": true, "thinkertoy": true}
+	if !validBanners[banner] {
+		renderError(w, http.StatusBadRequest, "400 - Bad Request: invalid banner")
+		return
+	}
+
+	for _, ch := range text {
+		if ch != '\n' && (ch < 32 || ch > 126) {
+			renderError(w, http.StatusBadRequest, "400 - Bad Request: non-ASCII character")
+			return
+		}
+	}
+
+	result, err := generateASCIIArt(text, banner)
+	if err != nil {
+		renderError(w, http.StatusInternalServerError, "500 - Internal Server Error: "+err.Error())
+		return
+	}
+
+	data := PageData{Result: result, Text: text, Banner: banner}
+	renderTemplate(w, "index.html", data)
+}
