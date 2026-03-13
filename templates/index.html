@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Art Generator</title>
+</head>
+<body>
+    <h1>ASCII Art Generator</h1>
+    <form id="ascii-form">
+        <label for="text">Enter your text:</label><br>
+        <textarea id="text" name="text" rows="4" cols="50">{{.Text}}</textarea><br>
+        <fieldset>
+            <legend>Choose a banner:</legend>
+            <label><input type="radio" name="banner" value="standard" {{if or (eq .Banner "standard") (eq .Banner "")}}checked{{end}}> Standard</label><br>
+            <label><input type="radio" name="banner" value="shadow" {{if eq .Banner "shadow"}}checked{{end}}> Shadow</label><br>
+            <label><input type="radio" name="banner" value="thinkertoy" {{if eq .Banner "thinkertoy"}}checked{{end}}> Thinkertoy</label>
+        </fieldset>
+        <br>
+        <button type="submit">Generate</button>
+    </form>
+    <div id="result-container">
+        {{if .Result}}<h2>Result:</h2><pre id="result">{{.Result}}</pre>{{end}}
+    </div>
+    <script>
+        document.getElementById('ascii-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const text = document.getElementById('text').value;
+            const banner = document.querySelector('input[name="banner"]:checked').value;
+
+            fetch('/api/ascii-art', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text, banner: banner })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                const container = document.getElementById('result-container');
+                if (data.error) {
+                    container.innerHTML = '<p style="color:red;">' + data.error + '</p>';
+                } else {
+                    container.innerHTML = '<h2>Result:</h2><pre id="result">' + data.result + '</pre>';
+                }
+            })
+            .catch(function(err) {
+                document.getElementById('result-container').innerHTML = '<p style="color:red;">Request failed: ' + err + '</p>';
+            });
+        });
+    </script>
+</body>
+</html>
