@@ -25,6 +25,21 @@ func parseTemplates() (*template.Template, error) {
 	return template.ParseGlob("templates/*.html")
 }
 
+func writeJSON(w http.ResponseWriter, code int, payload map[string]string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(payload)
+}
+
+func hasNonASCII(text string) bool {
+	for _, ch := range text {
+		if ch != '\n' && (ch < 32 || ch > 126) {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	var err error
 	templates, err = parseTemplates()
@@ -83,11 +98,9 @@ func asciiArtHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, ch := range text {
-		if ch != '\n' && (ch < 32 || ch > 126) {
-			renderError(w, http.StatusBadRequest, "400 Bad Request: non-ASCII character")
-			return
-		}
+	if hasNonASCII(text) {
+		renderError(w, http.StatusBadRequest, "400 Bad Request: non-ASCII character")
+		return
 	}
 
 	result, err := generateASCIIArt(text, banner)
@@ -102,9 +115,7 @@ func asciiArtHandler(w http.ResponseWriter, r *http.Request) {
 
 func apiAsciiArtHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]string{"error": "405 Method Not Allowed"})
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "405 Method Not Allowed"})
 		return
 	}
 
@@ -113,39 +124,27 @@ func apiAsciiArtHandler(w http.ResponseWriter, r *http.Request) {
 		Banner string `json:"banner"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "400 Bad Request: invalid JSON"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "400 Bad Request: invalid JSON"})
 		return
 	}
 
 	if !validBanners[req.Banner] {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "400 Bad Request: invalid banner"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "400 Bad Request: invalid banner"})
 		return
 	}
 
-	for _, ch := range req.Text {
-		if ch != '\n' && (ch < 32 || ch > 126) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "400 Bad Request: non-ASCII character"})
-			return
-		}
+	if hasNonASCII(req.Text) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "400 Bad Request: non-ASCII character"})
+		return
 	}
 
 	result, err := generateASCIIArt(req.Text, req.Banner)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "500 Internal Server Error: " + err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "500 Internal Server Error: " + err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"result": result})
+	writeJSON(w, http.StatusOK, map[string]string{"result": result})
 }
 
 func generateASCIIArt(text, bannerName string) (string, error) {
