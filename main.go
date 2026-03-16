@@ -195,10 +195,10 @@ func loadBanner(path string) (map[rune][]string, error) {
 	charMap := make(map[rune][]string)
 	for code := 32; code <= 126; code++ {
 		start := (code - 32) * 9
-		if start+8 > len(allLines) {
+		if start+9 > len(allLines) {
 			break
 		}
-		charMap[rune(code)] = allLines[start : start+8]
+		charMap[rune(code)] = allLines[start+1 : start+9]
 	}
 	return charMap, nil
 }
